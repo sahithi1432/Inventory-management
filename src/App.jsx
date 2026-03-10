@@ -5,7 +5,7 @@ import InventoryTable from "./components/InventoryTable";
 import OrdersTable from "./components/OrdersTable";
 import OrderSheet from "./components/OrderSheet";
 
-const API = "http://localhost:5000/api";
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 function App() {
   const [inventory, setInventory] = useState([]);
