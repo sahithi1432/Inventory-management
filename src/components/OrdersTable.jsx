@@ -219,41 +219,48 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
                                 Cancel
                               </button>
                             </>
-                          ) : isSending ? (
-                            <>
-                              <input
-                                className="form-input"
-                                type="number"
-                                placeholder={`Max ${pendingQty}`}
-                                style={{ padding: "4px 8px", width: "90px" }}
-                                value={sendQty}
-                                onChange={e => setSendQty(e.target.value)}
-                                min="1"
-                                max={pendingQty}
-                              />
-                              <button
-                                className="btn btn-success"
-                                style={{ padding: "6px 10px" }}
-                                onClick={() => {
-                                  const qty = Number(sendQty);
-                                  if (qty > 0 && qty <= pendingQty) {
-                                    markSent(order.id, qty);
-                                    setSendingId(null);
-                                    setSendQty("");
-                                  }
-                                }}
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                className="btn btn-danger"
-                                style={{ padding: "6px 10px" }}
-                                onClick={() => { setSendingId(null); setSendQty(""); }}
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
+                          ) : isSending ? (() => {
+                            const physicalStock = inventory.find(i => i.itemName === order.productName)?.availableQuantity || 0;
+                            const maxPossible = Math.min(pendingQty, physicalStock);
+                            
+                            return (
+                              <>
+                                <input
+                                  className="form-input"
+                                  type="number"
+                                  placeholder={`Max ${maxPossible}`}
+                                  style={{ padding: "4px 8px", width: "90px" }}
+                                  value={sendQty}
+                                  onChange={e => setSendQty(e.target.value)}
+                                  min="1"
+                                  max={maxPossible}
+                                />
+                                <button
+                                  className="btn btn-success"
+                                  style={{ padding: "6px 10px" }}
+                                  onClick={() => {
+                                    const qty = Number(sendQty);
+                                    if (qty > 0 && qty <= maxPossible) {
+                                      markSent(order.id, qty);
+                                      setSendingId(null);
+                                      setSendQty("");
+                                    } else if (qty > maxPossible) {
+                                      alert(`Cannot send more than available physical stock (${physicalStock}) or pending quantity (${pendingQty}).`);
+                                    }
+                                  }}
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  className="btn btn-danger"
+                                  style={{ padding: "6px 10px" }}
+                                  onClick={() => { setSendingId(null); setSendQty(""); }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            );
+                          })() : (
                             <>
                               {canSend && (
                                 <button
