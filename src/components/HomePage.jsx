@@ -1,6 +1,8 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
-function HomePage({ inventory, orders, searchQuery, setActiveTab, setSearchQuery, setStatusFilter }) {
+function HomePage({ inventory, orders, searchQuery, setSearchQuery, setStatusFilter }) {
+  const navigate = useNavigate();
   const q = searchQuery.toLowerCase();
 
   const filteredInventory = inventory.filter(item => 
@@ -23,11 +25,7 @@ function HomePage({ inventory, orders, searchQuery, setActiveTab, setSearchQuery
   });
 
   const totalProducts = filteredInventory.length;
-  const totalStock = filteredInventory.reduce((sum, i) => sum + i.availableQuantity, 0);
-  const totalOrders = filteredOrders.length;
   const pendingOrders = filteredOrders.filter((o) => o.status === "Pending" || o.status === "Partially Sent").length;
-  const sentOrders = filteredOrders.filter((o) => o.status === "Sent").length;
-  const rejectedOrders = filteredOrders.filter((o) => o.status === "Rejected").length;
   const totalShortage = filteredOrders
     .filter((o) => o.status === "Pending")
     .reduce((sum, o) => sum + o.shortageQuantity, 0);
@@ -36,13 +34,12 @@ function HomePage({ inventory, orders, searchQuery, setActiveTab, setSearchQuery
     <div>
       <div className="page-header">
         <h2>Dashboard Overview</h2>
-
       </div>
 
       <div className="stats-grid">
         <div 
           className="stat-card accent"
-          onClick={() => setActiveTab("inventory")}
+          onClick={() => navigate("/categories")}
           style={{ cursor: "pointer" }}
         >
           <div className="stat-value">{totalProducts}</div>
@@ -52,8 +49,8 @@ function HomePage({ inventory, orders, searchQuery, setActiveTab, setSearchQuery
         <div 
           className="stat-card warning"
           onClick={() => {
-            setActiveTab("orders");
             if (setStatusFilter) setStatusFilter("Pending");
+            navigate("/orders");
           }}
           style={{ cursor: "pointer" }}
         >
@@ -64,8 +61,8 @@ function HomePage({ inventory, orders, searchQuery, setActiveTab, setSearchQuery
         <div 
           className="stat-card danger"
           onClick={() => {
-            setActiveTab("orders");
             if (setStatusFilter) setStatusFilter("Pending");
+            navigate("/orders");
           }}
           style={{ cursor: "pointer" }}
         >

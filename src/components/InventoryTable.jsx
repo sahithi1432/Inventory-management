@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 
-function InventoryTable({ category, inventory, addInventory, editInventory, deleteInventory, searchQuery = "" }) {
+function InventoryTable({ category, inventory, addInventory, editInventory, deleteInventory, bulkDeleteInventory, searchQuery = "" }) {
   const [itemName, setItemName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editQty, setEditQty] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const filteredInventory = inventory.filter((item) => {
     const q = searchQuery.toLowerCase();
@@ -18,11 +19,39 @@ function InventoryTable({ category, inventory, addInventory, editInventory, dele
 
   const isSearching = searchQuery.length > 0;
 
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredInventory.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredInventory.map(i => i.id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} items from ${category}?`)) {
+      bulkDeleteInventory(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
-        <h2>{category} Stock Management</h2>
-        <p>Add new products or restock your {category.toLowerCase()} inventory.</p>
+        <div>
+          <h2>{category} Stock Management</h2>
+          <p>Add new products or restock your {category.toLowerCase()} inventory.</p>
+        </div>
+        {selectedIds.length > 0 && (
+          <button className="btn btn-danger" onClick={handleBulkDelete}>
+            🗑️ Delete Selected ({selectedIds.length})
+          </button>
+        )}
       </div>
 
       <div className="form-section">
@@ -82,6 +111,13 @@ function InventoryTable({ category, inventory, addInventory, editInventory, dele
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: "40px" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.length === filteredInventory.length && filteredInventory.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>#</th>
                 <th>Item Name</th>
                 <th>Available Quantity</th>
@@ -99,9 +135,17 @@ function InventoryTable({ category, inventory, addInventory, editInventory, dele
                     item.availableQuantity <= 300 ? "Low Stock" : "In Stock";
 
                 const isEditing = editingId === item.id;
+                const isSelected = selectedIds.includes(item.id);
 
                 return (
-                  <tr key={index}>
+                  <tr key={item.id} className={isSelected ? "row-selected" : ""}>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => toggleSelect(item.id)}
+                      />
+                    </td>
                     <td style={{ color: "var(--text-muted)" }}>{index + 1}</td>
 
                     {/* Item Name Column */}

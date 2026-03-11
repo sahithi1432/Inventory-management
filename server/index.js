@@ -86,6 +86,47 @@ app.put("/api/categories/:id", async (req, res) => {
 });
 
 // ============================================
+// DELETE /api/categories/bulk
+// ============================================
+app.delete("/api/categories/bulk", async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "No category IDs provided" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    for (const id of ids) {
+      const existing = await client.query("SELECT * FROM categories WHERE id = $1", [id]);
+      if (existing.rows.length > 0) {
+        const catName = existing.rows[0].name;
+        // Update orders for shortage
+        await client.query(
+          "UPDATE orders SET shortage_quantity = ordered_quantity - sent_quantity WHERE product_name IN (SELECT item_name FROM inventory WHERE LOWER(category) = LOWER($1)) AND (status = 'Pending' OR status = 'Partially Sent')",
+          [catName]
+        );
+        // DELETE inventory items in this category
+        await client.query("DELETE FROM inventory WHERE LOWER(category) = LOWER($1)", [catName]);
+        // Delete the category
+        await client.query("DELETE FROM categories WHERE id = $1", [id]);
+      }
+    }
+
+    await client.query("COMMIT");
+    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    res.json(cats.rows);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Failed to bulk delete categories" });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
 // DELETE /api/categories/:id
 // ============================================
 app.delete("/api/categories/:id", async (req, res) => {
@@ -458,6 +499,41 @@ app.put("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================
+// DELETE /api/inventory/bulk
+// ============================================
+app.delete("/api/inventory/bulk", async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "No inventory IDs provided" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    for (const id of ids) {
+      const existing = await client.query("SELECT * FROM inventory WHERE id = $1", [id]);
+      if (existing.rows.length > 0) {
+        const itemName = existing.rows[0].item_name;
+        await client.query("DELETE FROM inventory WHERE id = $1", [id]);
+        await reallocateStock(client, itemName);
+      }
+    }
+
+    await client.query("COMMIT");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
+    res.json({ inventory: inv.rows, orders: ords.rows });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Failed to bulk delete inventory" });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
 // DELETE /api/inventory/:id
 // ============================================
 app.delete("/api/inventory/:id", async (req, res) => {
@@ -538,6 +614,46 @@ app.put("/api/orders/:id", async (req, res) => {
     await client.query("ROLLBACK");
     console.error(err);
     res.status(500).json({ error: "Failed to update order" });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
+// DELETE /api/orders/bulk
+// ============================================
+app.delete("/api/orders/bulk", async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "No order IDs provided" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const affectedProducts = new Set();
+    for (const id of ids) {
+      const existingRes = await client.query("SELECT * FROM orders WHERE id = $1", [id]);
+      if (existingRes.rows.length > 0) {
+        const order = existingRes.rows[0];
+        affectedProducts.add(order.product_name);
+        await client.query("DELETE FROM orders WHERE id = $1", [id]);
+      }
+    }
+
+    for (const productName of affectedProducts) {
+      await reallocateStock(client, productName);
+    }
+
+    await client.query("COMMIT");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
+    res.json({ inventory: inv.rows, orders: ords.rows });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Failed to bulk delete orders" });
   } finally {
     client.release();
   }

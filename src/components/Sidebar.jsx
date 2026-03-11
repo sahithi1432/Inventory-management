@@ -1,8 +1,7 @@
 import React, { useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 function Sidebar({ 
-  activeTab, 
-  setActiveTab, 
   categories = [], 
   isStockOpen, 
   setIsStockOpen, 
@@ -13,43 +12,48 @@ function Sidebar({
   clearStatusFilter
 }) {
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const filteredCategories = categories.filter(cat => 
     cat.name.toLowerCase().includes(sidebarSearch.toLowerCase())
   );
 
   const navItems = [
-    { id: "home", label: "Home", icon: "🏠" },
+    { id: "home", label: "Home", icon: "🏠", path: "/home" },
     { 
       id: "inventory", 
       label: "Stock", 
       icon: "📦",
+      path: "/categories",
       subItems: filteredCategories.map(cat => ({ 
         id: `inventory-${cat.name.toLowerCase()}`, 
-        label: cat.name 
+        label: cat.name,
+        path: `/inventory/${cat.name.toLowerCase()}`
       }))
     },
-    { id: "orders", label: "Orders", icon: "🛒" },
+    { id: "orders", label: "Orders", icon: "🛒", path: "/orders" },
   ];
 
-  const handleTabClick = (id, hasSubItems = false) => {
+  const handleTabClick = (e, item) => {
     if (clearStatusFilter) clearStatusFilter();
-    if (hasSubItems) {
+    
+    if (item.id === "inventory") {
+      e.preventDefault();
       setIsStockOpen(!isStockOpen);
       if (!isStockOpen && !isSidebarOpen) {
         setIsSidebarOpen(true);
       }
+      navigate(item.path);
     } else {
-      setActiveTab(id);
       setIsStockOpen(false);
       if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
     }
   };
 
-  const handleSubTabClick = (e, id) => {
+  const handleSubTabClick = (e) => {
     e.stopPropagation();
     if (clearStatusFilter) clearStatusFilter();
-    setActiveTab(id);
     if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
   };
 
@@ -62,7 +66,6 @@ function Sidebar({
       onMouseLeave={() => {
         if (window.innerWidth > 768) {
           setIsSidebarOpen(false);
-          // Don't close stock menu here so search remains accessible
         }
       }}
     >
@@ -79,14 +82,17 @@ function Sidebar({
       <nav className="sidebar-nav">
         {navItems.map((item) => (
           <div key={item.id}>
-            <div
-              className={`nav-item ${activeTab === item.id || (item.subItems && activeTab.startsWith('inventory-')) ? "active" : ""}`}
-              onClick={() => handleTabClick(item.id, !!item.subItems)}
+            <NavLink
+              to={item.path}
+              className={({ isActive }) => 
+                `nav-item ${isActive || (item.id === 'inventory' && location.pathname.startsWith('/inventory')) ? "active" : ""}`
+              }
+              onClick={(e) => handleTabClick(e, item)}
               title={!isSidebarOpen && !isMobileMenuOpen ? item.label : ""}
             >
               <span className="nav-icon">{item.icon}</span>
               {(isSidebarOpen || isMobileMenuOpen) && <span className="nav-label">{item.label}</span>}
-            </div>
+            </NavLink>
             
             {item.id === "inventory" && isStockOpen && (isSidebarOpen || isMobileMenuOpen) && (
               <div style={{ padding: "4px 12px 0 12px" }}>
@@ -126,31 +132,18 @@ function Sidebar({
                     </div>
                   ) : (
                     item.subItems.map(subItem => (
-                      <div
+                      <NavLink
                         key={subItem.id}
-                        className={`nav-item sub-nav-item ${activeTab === subItem.id ? "active" : ""}`}
-                        onClick={(e) => handleSubTabClick(e, subItem.id)}
+                        to={subItem.path}
+                        className={({ isActive }) => `nav-item sub-nav-item ${isActive ? "active" : ""}`}
+                        onClick={handleSubTabClick}
                         style={{ padding: "6px 12px", fontSize: "12px" }}
                       >
                         {subItem.label}
-                      </div>
+                      </NavLink>
                     ))
                   )}
                 </div>
-              </div>
-            )}
-            
-            {item.id !== "inventory" && item.subItems && isStockOpen && (isSidebarOpen || isMobileMenuOpen) && (
-              <div className="sub-menu">
-                {item.subItems.map(subItem => (
-                  <div
-                    key={subItem.id}
-                    className={`nav-item sub-nav-item ${activeTab === subItem.id ? "active" : ""}`}
-                    onClick={(e) => handleSubTabClick(e, subItem.id)}
-                  >
-                    {subItem.label}
-                  </div>
-                ))}
               </div>
             )}
           </div>

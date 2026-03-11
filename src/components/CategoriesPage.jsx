@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
-function CategoriesPage({ categories, addCategory, editCategory, deleteCategory, setActiveTab, searchQuery = "" }) {
+function CategoriesPage({ categories, addCategory, editCategory, deleteCategory, bulkDeleteCategories, searchQuery = "" }) {
   const [newCat, setNewCat] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const filteredCategories = categories.filter((cat) =>
     (cat.name || "").toLowerCase().includes((searchQuery || "").toLowerCase())
@@ -19,11 +21,39 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
     }
   };
 
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredCategories.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredCategories.map(c => c.id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} categories? \nAll sub-items will also be deleted.`)) {
+      bulkDeleteCategories(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
-        <h2>Stock Categories</h2>
-        <p>Manage your stock categories. Click a category name to view its items.</p>
+        <div>
+          <h2>Stock Categories</h2>
+          <p>Manage your stock categories. Click a category name to view its items.</p>
+        </div>
+        {selectedIds.length > 0 && (
+          <button className="btn btn-danger" onClick={handleBulkDelete}>
+            🗑️ Delete Selected ({selectedIds.length})
+          </button>
+        )}
       </div>
 
       <div className="form-section">
@@ -62,6 +92,13 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: "40px" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.length === filteredCategories.length && filteredCategories.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>#</th>
                 <th>Category Name</th>
                 <th>Actions</th>
@@ -70,8 +107,16 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
             <tbody>
               {filteredCategories.map((cat, index) => {
                 const isEditing = editingId === cat.id;
+                const isSelected = selectedIds.includes(cat.id);
                 return (
-                  <tr key={cat.id}>
+                  <tr key={cat.id} className={isSelected ? "row-selected" : ""}>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => toggleSelect(cat.id)}
+                      />
+                    </td>
                     <td style={{ color: "var(--text-muted)" }}>{index + 1}</td>
 
                     {/* Category Name */}
@@ -84,12 +129,12 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
                           onChange={(e) => setEditName(e.target.value)}
                         />
                       ) : (
-                        <span
-                          style={{ cursor: "pointer" }}
-                          onClick={() => setActiveTab(`inventory-${cat.name.toLowerCase()}`)}
+                        <Link
+                          to={`/inventory/${cat.name.toLowerCase()}`}
+                          style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}
                         >
                           {cat.name}
-                        </span>
+                        </Link>
                       )}
                     </td>
 

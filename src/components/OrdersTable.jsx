@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, inventory = [], searchQuery, statusFilter, clearStatusFilter }) {
+function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, bulkDeleteOrders, inventory = [], searchQuery, statusFilter, clearStatusFilter }) {
   const [editingId, setEditingId] = useState(null);
   const [editCustomerName, setEditCustomerName] = useState("");
   const [editProductName, setEditProductName] = useState("");
@@ -8,11 +8,11 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
   const [editOrderDate, setEditOrderDate] = useState("");
   const [sendingId, setSendingId] = useState(null);
   const [sendQty, setSendQty] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const filteredOrders = orders.filter(order => {
     // Apply Status Filter first (from Dashboard cards)
     if (statusFilter && order.status !== statusFilter) {
-      // Small exception: if statusFilter is "Pending", also include "Partially Sent"
       if (statusFilter === "Pending" && order.status === "Partially Sent") {
         // Carry on
       } else {
@@ -36,13 +36,41 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
     );
   });
 
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredOrders.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredOrders.map(o => o.id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} selected orders?`)) {
+      bulkDeleteOrders(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h3 className="section-title" style={{ margin: 0 }}>
-          {statusFilter ? `${statusFilter} Orders` : "All Orders"} 
-          {searchQuery && <span style={{ fontWeight: 400, fontSize: 14, color: 'var(--text-muted)', marginLeft: 8 }}>(Results for "{searchQuery}")</span>}
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <h3 className="section-title" style={{ margin: 0 }}>
+            {statusFilter ? `${statusFilter} Orders` : "All Orders"} 
+            {searchQuery && <span style={{ fontWeight: 400, fontSize: 14, color: 'var(--text-muted)', marginLeft: 8 }}>(Results for "{searchQuery}")</span>}
+          </h3>
+          {selectedIds.length > 0 && (
+            <button className="btn btn-danger" onClick={handleBulkDelete} style={{ padding: "4px 12px", fontSize: "12px" }}>
+              🗑️ Delete Selected ({selectedIds.length})
+            </button>
+          )}
+        </div>
         {statusFilter && (
           <button 
             className="btn" 
@@ -63,6 +91,13 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: "40px" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.length === filteredOrders.length && filteredOrders.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>Date</th>
                 <th>Customer</th>
                 <th>Product</th>
@@ -77,7 +112,7 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
             <tbody>
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <td colSpan="10" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                     No matching orders found.
                   </td>
                 </tr>
@@ -92,10 +127,18 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
 
                   const isEditing = editingId === order.id;
                   const isSending = sendingId === order.id;
+                  const isSelected = selectedIds.includes(order.id);
                   const canSend = (order.status === "Pending" || order.status === "Partially Sent") && pendingQty > 0;
 
                   return (
-                    <tr key={order.id}>
+                    <tr key={order.id} className={isSelected ? "row-selected" : ""}>
+                      <td>
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected}
+                          onChange={() => toggleSelect(order.id)}
+                        />
+                      </td>
                       <td>
                         {isEditing ? (
                           <input
@@ -324,5 +367,4 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
     </div>
   );
 }
-
 export default OrdersTable;

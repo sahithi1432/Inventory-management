@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import HomePage from "./components/HomePage";
 import InventoryTable from "./components/InventoryTable";
@@ -7,6 +8,150 @@ import OrderSheet from "./components/OrderSheet";
 import CategoriesPage from "./components/CategoriesPage";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+function AppContent({ 
+  inventory, orders, categories, 
+  fetchData, applyResponse, 
+  addCategory, editCategory, deleteCategory, bulkDeleteCategories,
+  addInventory, editInventory, deleteInventory, bulkDeleteInventory,
+  placeOrder, rejectOrder, markSent, editOrder, deleteOrder, bulkDeleteOrders,
+  isSidebarOpen, setIsSidebarOpen,
+  isStockOpen, setIsStockOpen,
+  isMobileMenuOpen, setIsMobileMenuOpen,
+  searchQuery, setSearchQuery,
+  statusFilter, setStatusFilter
+}) {
+  const location = useLocation();
+  const path = location.pathname;
+
+  return (
+    <div className={`app-layout ${!isSidebarOpen ? "sidebar-collapsed" : ""} ${isMobileMenuOpen ? "mobile-menu-open" : ""}`}>
+      {/* Mobile Header */}
+      <div className="mobile-header">
+        <button className="menu-toggle" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {isMobileMenuOpen ? "✕" : "☰"}
+        </button>
+        <div className="mobile-logo-text">Juice N Power</div>
+      </div>
+
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div className="sidebar-backdrop" onClick={() => setIsMobileMenuOpen(false)}></div>
+      )}
+
+      <Sidebar 
+        categories={categories} 
+        isStockOpen={isStockOpen}
+        setIsStockOpen={setIsStockOpen}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        clearStatusFilter={() => setStatusFilter("")}
+      />
+
+      <main className="main-content">
+        {/* Global Search Bar */}
+        <div className="search-header">
+          <div className="search-input-wrapper">
+            <span className="search-icon">🔍</span>
+            <input 
+              type="text" 
+              className="search-input" 
+              placeholder={`Search...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="search-clear" onClick={() => setSearchQuery("")}>✕</button>
+            )}
+          </div>
+        </div>
+
+        <Routes>
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          
+          <Route path="/home" element={
+            <HomePage 
+              inventory={inventory} 
+              orders={orders} 
+              searchQuery={searchQuery} 
+              setSearchQuery={setSearchQuery}
+              setStatusFilter={setStatusFilter}
+            />
+          } />
+
+          <Route path="/categories" element={
+            <CategoriesPage
+              categories={categories}
+              addCategory={addCategory}
+              editCategory={editCategory}
+              deleteCategory={deleteCategory}
+              bulkDeleteCategories={bulkDeleteCategories}
+              searchQuery={searchQuery}
+            />
+          } />
+
+          <Route path="/inventory/:catSafeName" element={<InventoryRouteWrapper 
+            categories={categories}
+            inventory={inventory}
+            addInventory={addInventory}
+            editInventory={editInventory}
+            deleteInventory={deleteInventory}
+            bulkDeleteInventory={bulkDeleteInventory}
+            searchQuery={searchQuery}
+          />} />
+
+          <Route path="/orders" element={
+            <div>
+              <div className="page-header">
+                <h2>Order Management</h2>
+                <p>Place new orders and manage existing ones.</p>
+              </div>
+
+              <OrderSheet
+                inventory={inventory}
+                categories={categories}
+                placeOrder={placeOrder}
+              />
+              <OrdersTable
+                orders={orders}
+                inventory={inventory}
+                markSent={markSent}
+                rejectOrder={rejectOrder}
+                updateOrder={editOrder}
+                deleteOrder={deleteOrder}
+                bulkDeleteOrders={bulkDeleteOrders}
+                searchQuery={searchQuery}
+                statusFilter={statusFilter}
+                clearStatusFilter={() => setStatusFilter("")}
+              />
+            </div>
+          } />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+import { useParams } from "react-router-dom";
+function InventoryRouteWrapper({ categories, inventory, addInventory, editInventory, deleteInventory, bulkDeleteInventory, searchQuery }) {
+  const { catSafeName } = useParams();
+  const actualCategory = categories.find(c => c.name.toLowerCase() === catSafeName.toLowerCase());
+  
+  return (
+    <InventoryTable
+      key={catSafeName}
+      category={actualCategory ? actualCategory.name : catSafeName}
+      inventory={inventory}
+      addInventory={addInventory}
+      editInventory={editInventory}
+      deleteInventory={deleteInventory}
+      bulkDeleteInventory={bulkDeleteInventory}
+      searchQuery={searchQuery}
+    />
+  );
+}
 
 function App() {
   const [inventory, setInventory] = useState([]);
@@ -17,11 +162,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [activeTab, setActiveTab] = useState("home");
 
-  // ==============================
-  // LOAD DATA ON MOUNT
-  // ==============================
   useEffect(() => {
     fetchData();
   }, []);
@@ -39,12 +180,12 @@ function App() {
 
       setCategories(catData || []);
       setInventory(
-      invData.map((r) => ({
-        id: r.id,
-        itemName: r.item_name,
-        availableQuantity: r.available_quantity,
-        category: r.category,
-      }))
+        invData.map((r) => ({
+          id: r.id,
+          itemName: r.item_name,
+          availableQuantity: r.available_quantity,
+          category: r.category,
+        }))
       );
       setOrders(
         ordData.map((r) => ({
@@ -63,7 +204,6 @@ function App() {
     }
   };
 
-  // Helper: apply API response (both inventory + orders come back)
   const applyResponse = (data) => {
     setInventory(
       data.inventory.map((r) => ({
@@ -87,9 +227,6 @@ function App() {
     );
   };
 
-  // ==============================
-  // ADD CATEGORY
-  // ==============================
   const addCategory = async (name) => {
     try {
       const res = await fetch(`${API}/categories`, {
@@ -105,9 +242,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // EDIT CATEGORY
-  // ==============================
   const editCategory = async (id, name) => {
     try {
       const res = await fetch(`${API}/categories/${id}`, {
@@ -118,7 +252,6 @@ function App() {
       const data = await res.json();
       if (res.ok) {
         setCategories(data);
-        // Re-fetch inventory since category names may have changed
         const invRes = await fetch(`${API}/inventory`);
         const invData = await invRes.json();
         setInventory(
@@ -136,9 +269,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // DELETE CATEGORY
-  // ==============================
   const deleteCategory = async (id) => {
     try {
       const res = await fetch(`${API}/categories/${id}`, {
@@ -147,7 +277,6 @@ function App() {
       const data = await res.json();
       if (res.ok) {
         setCategories(data);
-        // Re-fetch inventory since items are deleted along with category
         const invRes = await fetch(`${API}/inventory`);
         const invData = await invRes.json();
         setInventory(
@@ -165,9 +294,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // ADD INVENTORY / ADD STOCK
-  // ==============================
   const addInventory = async (itemName, quantity, category) => {
     try {
       const res = await fetch(`${API}/inventory`, {
@@ -183,9 +309,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // PLACE ORDER
-  // ==============================
   const placeOrder = async ({ orderDate, customerName, productName, orderedQuantity }) => {
     try {
       const res = await fetch(`${API}/orders`, {
@@ -201,9 +324,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // REJECT ORDER
-  // ==============================
   const rejectOrder = async (orderId) => {
     try {
       const res = await fetch(`${API}/orders/${orderId}/reject`, { method: "PUT" });
@@ -215,9 +335,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // MARK SENT (partial)
-  // ==============================
   const markSent = async (orderId, sendQuantity) => {
     try {
       const res = await fetch(`${API}/orders/${orderId}/send`, {
@@ -233,9 +350,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // EDIT INVENTORY
-  // ==============================
   const editInventory = async (id, itemName, quantity, category) => {
     try {
       const res = await fetch(`${API}/inventory/${id}`, {
@@ -251,9 +365,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // DELETE INVENTORY
-  // ==============================
   const deleteInventory = async (id) => {
     try {
       const res = await fetch(`${API}/inventory/${id}`, { method: "DELETE" });
@@ -265,9 +376,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // EDIT ORDER
-  // ==============================
   const editOrder = async (id, updatedOrder) => {
     try {
       const res = await fetch(`${API}/orders/${id}`, {
@@ -283,9 +391,6 @@ function App() {
     }
   };
 
-  // ==============================
-  // DELETE ORDER
-  // ==============================
   const deleteOrder = async (id) => {
     try {
       const res = await fetch(`${API}/orders/${id}`, { method: "DELETE" });
@@ -297,117 +402,66 @@ function App() {
     }
   };
 
+  const bulkDeleteCategories = async (ids) => {
+    try {
+      const res = await fetch(`${API}/categories/bulk`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json();
+      if (res.ok) setCategories(data);
+      else alert(data.error || "Bulk delete failed");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const bulkDeleteInventory = async (ids) => {
+    try {
+      const res = await fetch(`${API}/inventory/bulk`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json();
+      if (res.ok) applyResponse(data);
+      else alert(data.error || "Bulk delete failed");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const bulkDeleteOrders = async (ids) => {
+    try {
+      const res = await fetch(`${API}/orders/bulk`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json();
+      if (res.ok) applyResponse(data);
+      else alert(data.error || "Bulk delete failed");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <div className={`app-layout ${!isSidebarOpen ? "sidebar-collapsed" : ""} ${isMobileMenuOpen ? "mobile-menu-open" : ""}`}>
-      {/* Mobile Header */}
-      <div className="mobile-header">
-        <button className="menu-toggle" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? "✕" : "☰"}
-        </button>
-        <div className="mobile-logo-text">Juice N Power</div>
-      </div>
-
-      {/* Mobile Backdrop */}
-      {isMobileMenuOpen && (
-        <div className="sidebar-backdrop" onClick={() => setIsMobileMenuOpen(false)}></div>
-      )}
-
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        categories={categories} 
-        isStockOpen={isStockOpen}
-        setIsStockOpen={setIsStockOpen}
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-        clearStatusFilter={() => setStatusFilter("")}
+    <BrowserRouter>
+      <AppContent 
+        inventory={inventory} orders={orders} categories={categories}
+        fetchData={fetchData} applyResponse={applyResponse}
+        addCategory={addCategory} editCategory={editCategory} deleteCategory={deleteCategory} bulkDeleteCategories={bulkDeleteCategories}
+        addInventory={addInventory} editInventory={editInventory} deleteInventory={deleteInventory} bulkDeleteInventory={bulkDeleteInventory}
+        placeOrder={placeOrder} rejectOrder={rejectOrder} markSent={markSent} editOrder={editOrder} deleteOrder={deleteOrder} bulkDeleteOrders={bulkDeleteOrders}
+        isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}
+        isStockOpen={isStockOpen} setIsStockOpen={setIsStockOpen}
+        isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
+        searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
       />
-
-      <main className="main-content">
-        {/* Global Search Bar */}
-        <div className="search-header">
-          <div className="search-input-wrapper">
-            <span className="search-icon">🔍</span>
-            <input 
-              type="text" 
-              className="search-input" 
-              placeholder={`Search in ${activeTab === 'home' ? 'Dashboard' : activeTab === 'orders' ? 'Orders' : 'Stock'}...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button className="search-clear" onClick={() => setSearchQuery("")}>✕</button>
-            )}
-          </div>
-        </div>
-
-        {activeTab === "home" && (
-          <HomePage 
-            inventory={inventory} 
-            orders={orders} 
-            searchQuery={searchQuery} 
-            setActiveTab={setActiveTab}
-            setSearchQuery={setSearchQuery}
-            setStatusFilter={setStatusFilter}
-          />
-        )}
-
-        {activeTab.startsWith("inventory-") && (() => {
-          const catNameFromTab = activeTab.replace("inventory-", "");
-          const actualCategory = categories.find(c => c.name.toLowerCase() === catNameFromTab.toLowerCase());
-          return (
-            <InventoryTable
-              key={activeTab}
-              category={actualCategory ? actualCategory.name : catNameFromTab}
-              inventory={inventory}
-              addInventory={addInventory}
-              editInventory={editInventory}
-              deleteInventory={deleteInventory}
-              searchQuery={searchQuery}
-            />
-          );
-        })()}
-
-        {activeTab === "inventory" && (
-          <CategoriesPage
-            categories={categories}
-            addCategory={addCategory}
-            editCategory={editCategory}
-            deleteCategory={deleteCategory}
-            setActiveTab={setActiveTab}
-            searchQuery={searchQuery}
-          />
-        )}
-
-        {activeTab === "orders" && (
-          <div>
-            <div className="page-header">
-              <h2>Order Management</h2>
-              <p>Place new orders and manage existing ones.</p>
-            </div>
-
-            <OrderSheet
-              inventory={inventory}
-              categories={categories}
-              placeOrder={placeOrder}
-            />
-            <OrdersTable
-              orders={orders}
-              inventory={inventory}
-              markSent={markSent}
-              rejectOrder={rejectOrder}
-              updateOrder={editOrder}
-              deleteOrder={deleteOrder}
-              searchQuery={searchQuery}
-              statusFilter={statusFilter}
-              clearStatusFilter={() => setStatusFilter("")}
-            />
-          </div>
-        )}
-      </main>
-    </div>
+    </BrowserRouter>
   );
 }
 
