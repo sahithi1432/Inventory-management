@@ -1,12 +1,22 @@
 import React, { useState } from "react";
 
-function InventoryTable({ inventory, addInventory, editInventory, deleteInventory, category = "General" }) {
+function InventoryTable({ category, inventory, addInventory, editInventory, deleteInventory, searchQuery = "" }) {
   const [itemName, setItemName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editQty, setEditQty] = useState("");
-  const filteredInventory = inventory.filter(item => (item.category || "").toLowerCase() === category.toLowerCase());
+
+  const filteredInventory = inventory.filter((item) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      (item.category || "").toLowerCase() === category.toLowerCase() &&
+      ((item.itemName || "").toLowerCase().includes(q) ||
+       String(item.availableQuantity || "").includes(q))
+    );
+  });
+
+  const isSearching = searchQuery.length > 0;
 
   return (
     <div>
@@ -59,8 +69,13 @@ function InventoryTable({ inventory, addInventory, editInventory, deleteInventor
 
       {filteredInventory.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">📦</div>
-          <p>No {category === "General" ? "inventory items" : category.toLowerCase()} yet. Add your first product above.</p>
+          <div className="empty-icon">{isSearching ? "🔍" : "📦"}</div>
+          <p>
+            {isSearching 
+              ? `No products matching "${searchQuery}" found in ${category}.`
+              : `No ${category === "General" ? "inventory items" : category.toLowerCase()} yet. Add your first product above.`
+            }
+          </p>
         </div>
       ) : (
         <div className="table-container">

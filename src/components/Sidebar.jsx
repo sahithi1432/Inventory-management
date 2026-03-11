@@ -9,7 +9,8 @@ function Sidebar({
   isSidebarOpen, 
   setIsSidebarOpen,
   isMobileMenuOpen,
-  setIsMobileMenuOpen
+  setIsMobileMenuOpen,
+  clearStatusFilter
 }) {
 
   const navItems = [
@@ -27,6 +28,7 @@ function Sidebar({
   ];
 
   const handleTabClick = (id, hasSubItems = false) => {
+    if (clearStatusFilter) clearStatusFilter();
     if (hasSubItems) {
       setIsStockOpen(!isStockOpen);
       setActiveTab(id);
@@ -39,6 +41,7 @@ function Sidebar({
 
   const handleSubTabClick = (e, id) => {
     e.stopPropagation();
+    if (clearStatusFilter) clearStatusFilter();
     setActiveTab(id);
     if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
   };

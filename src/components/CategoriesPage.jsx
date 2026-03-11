@@ -1,9 +1,15 @@
 import React, { useState } from "react";
 
-function CategoriesPage({ categories, addCategory, editCategory, deleteCategory, setActiveTab }) {
+function CategoriesPage({ categories, addCategory, editCategory, deleteCategory, setActiveTab, searchQuery = "" }) {
   const [newCat, setNewCat] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
+
+  const filteredCategories = categories.filter((cat) =>
+    (cat.name || "").toLowerCase().includes((searchQuery || "").toLowerCase())
+  );
+
+  const isSearching = searchQuery.length > 0;
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -41,10 +47,15 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
 
       <h3 className="section-title">Current Categories</h3>
 
-      {categories.length === 0 ? (
+      {filteredCategories.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">📁</div>
-          <p>No categories yet. Add your first stock category above.</p>
+          <div className="empty-icon">{isSearching ? "🔍" : "📁"}</div>
+          <p>
+            {isSearching 
+              ? `No categories matching "${searchQuery}" found.`
+              : `No categories yet. Add your first stock category above.`
+            }
+          </p>
         </div>
       ) : (
         <div className="table-container">
@@ -57,7 +68,7 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
               </tr>
             </thead>
             <tbody>
-              {categories.map((cat, index) => {
+              {filteredCategories.map((cat, index) => {
                 const isEditing = editingId === cat.id;
                 return (
                   <tr key={cat.id}>

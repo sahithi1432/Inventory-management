@@ -15,6 +15,8 @@ function App() {
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [activeTab, setActiveTab] = useState("home");
 
   // ==============================
@@ -320,11 +322,36 @@ function App() {
         setIsSidebarOpen={setIsSidebarOpen}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
+        clearStatusFilter={() => setStatusFilter("")}
       />
 
       <main className="main-content">
+        {/* Global Search Bar */}
+        <div className="search-header">
+          <div className="search-input-wrapper">
+            <span className="search-icon">🔍</span>
+            <input 
+              type="text" 
+              className="search-input" 
+              placeholder={`Search in ${activeTab === 'home' ? 'Dashboard' : activeTab === 'orders' ? 'Orders' : 'Stock'}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="search-clear" onClick={() => setSearchQuery("")}>✕</button>
+            )}
+          </div>
+        </div>
+
         {activeTab === "home" && (
-          <HomePage inventory={inventory} orders={orders} />
+          <HomePage 
+            inventory={inventory} 
+            orders={orders} 
+            searchQuery={searchQuery} 
+            setActiveTab={setActiveTab}
+            setSearchQuery={setSearchQuery}
+            setStatusFilter={setStatusFilter}
+          />
         )}
 
         {activeTab.startsWith("inventory-") && (
@@ -335,6 +362,7 @@ function App() {
             addInventory={addInventory}
             editInventory={editInventory}
             deleteInventory={deleteInventory}
+            searchQuery={searchQuery}
           />
         )}
 
@@ -345,6 +373,7 @@ function App() {
             editCategory={editCategory}
             deleteCategory={deleteCategory}
             setActiveTab={setActiveTab}
+            searchQuery={searchQuery}
           />
         )}
 
@@ -362,10 +391,14 @@ function App() {
             />
             <OrdersTable
               orders={orders}
-              rejectOrder={rejectOrder}
+              inventory={inventory}
               markSent={markSent}
-              editOrder={editOrder}
+              rejectOrder={rejectOrder}
+              updateOrder={editOrder}
               deleteOrder={deleteOrder}
+              searchQuery={searchQuery}
+              statusFilter={statusFilter}
+              clearStatusFilter={() => setStatusFilter("")}
             />
           </div>
         )}
