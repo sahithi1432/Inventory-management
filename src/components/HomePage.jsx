@@ -15,24 +15,21 @@ function HomePage({ inventory, orders }) {
     <div>
       <div className="page-header">
         <h2>Dashboard Overview</h2>
-        <p>Real-time snapshot of your inventory and order pipeline.</p>
+
       </div>
 
       <div className="stats-grid">
         <div className="stat-card accent">
-          <div className="stat-icon accent">📦</div>
           <div className="stat-value">{totalProducts}</div>
           <div className="stat-label">Products</div>
         </div>
 
         <div className="stat-card warning">
-          <div className="stat-icon warning">⏳</div>
           <div className="stat-value">{pendingOrders}</div>
           <div className="stat-label">Pending Orders</div>
         </div>
 
         <div className="stat-card danger">
-          <div className="stat-icon danger">⚠️</div>
           <div className="stat-value">{totalShortage}</div>
           <div className="stat-label">Total Shortage</div>
         </div>
@@ -78,10 +75,10 @@ function HomePage({ inventory, orders }) {
                 {inventory.map((item, idx) => {
                   const badgeClass =
                     item.availableQuantity === 0 ? "badge-out" :
-                    item.availableQuantity <= 5 ? "badge-low-stock" : "badge-in-stock";
+                      item.availableQuantity <= 5 ? "badge-low-stock" : "badge-in-stock";
                   const label =
                     item.availableQuantity === 0 ? "Out of Stock" :
-                    item.availableQuantity <= 5 ? "Low Stock" : "In Stock";
+                      item.availableQuantity <= 5 ? "Low Stock" : "In Stock";
                   return (
                     <tr key={idx}>
                       <td style={{ fontWeight: 500, color: "var(--text-primary)" }}>{item.itemName}</td>

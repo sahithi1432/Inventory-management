@@ -1,21 +1,22 @@
 import React, { useState } from "react";
 
-function InventoryTable({ inventory, addInventory, editInventory, deleteInventory }) {
+function InventoryTable({ inventory, addInventory, editInventory, deleteInventory, category = "General" }) {
   const [itemName, setItemName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editQty, setEditQty] = useState("");
+  const filteredInventory = inventory.filter(item => (item.category || "").toLowerCase() === category.toLowerCase());
 
   return (
     <div>
       <div className="page-header">
-        <h2>Stock Management</h2>
-        <p>Add new products or restock existing inventory.</p>
+        <h2>{category === "General" ? "Stock Management" : `${category} Stock Management`}</h2>
+        <p>Add new {category === "General" ? "products" : category.toLowerCase()} or restock existing inventory.</p>
       </div>
 
       <div className="form-section">
-        <h3>Add / Restock Item</h3>
+        <h3>Add / Restock {category !== "General" ? category : "Item"}</h3>
         <div className="form-grid">
           <div className="form-group">
             <label>Item Name</label>
@@ -43,7 +44,7 @@ function InventoryTable({ inventory, addInventory, editInventory, deleteInventor
             <button
               className="btn btn-primary"
               onClick={() => {
-                addInventory(itemName, quantity);
+                addInventory(itemName, quantity, category);
                 setItemName("");
                 setQuantity("");
               }}
@@ -54,12 +55,12 @@ function InventoryTable({ inventory, addInventory, editInventory, deleteInventor
         </div>
       </div>
 
-      <h3 className="section-title">Current Inventory</h3>
+      <h3 className="section-title">Current {category !== "General" ? `${category} ` : ""}Inventory</h3>
 
-      {inventory.length === 0 ? (
+      {filteredInventory.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📦</div>
-          <p>No inventory items yet. Add your first product above.</p>
+          <p>No {category === "General" ? "inventory items" : category.toLowerCase()} yet. Add your first product above.</p>
         </div>
       ) : (
         <div className="table-container">
@@ -74,20 +75,20 @@ function InventoryTable({ inventory, addInventory, editInventory, deleteInventor
               </tr>
             </thead>
             <tbody>
-              {inventory.map((item, index) => {
+              {filteredInventory.map((item, index) => {
                 const badgeClass =
                   item.availableQuantity === 0 ? "badge-out" :
-                  item.availableQuantity <= 5 ? "badge-low-stock" : "badge-in-stock";
+                    item.availableQuantity <= 300 ? "badge-low-stock" : "badge-in-stock";
                 const label =
                   item.availableQuantity === 0 ? "Out of Stock" :
-                  item.availableQuantity <= 5 ? "Low Stock" : "In Stock";
-                
+                    item.availableQuantity <= 300 ? "Low Stock" : "In Stock";
+
                 const isEditing = editingId === item.id;
 
                 return (
                   <tr key={index}>
                     <td style={{ color: "var(--text-muted)" }}>{index + 1}</td>
-                    
+
                     {/* Item Name Column */}
                     <td style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                       {isEditing ? (
@@ -129,7 +130,7 @@ function InventoryTable({ inventory, addInventory, editInventory, deleteInventor
                               className="btn btn-success"
                               style={{ padding: "6px 10px" }}
                               onClick={() => {
-                                editInventory(item.id, editName, editQty);
+                                editInventory(item.id, editName, editQty, category);
                                 setEditingId(null);
                               }}
                             >
@@ -160,7 +161,7 @@ function InventoryTable({ inventory, addInventory, editInventory, deleteInventor
                               className="btn btn-danger"
                               style={{ padding: "6px 10px" }}
                               onClick={() => {
-                                if(window.confirm(`Are you sure you want to delete ${item.itemName}?`)) {
+                                if (window.confirm(`Are you sure you want to delete ${item.itemName}?`)) {
                                   deleteInventory(item.id);
                                 }
                               }}

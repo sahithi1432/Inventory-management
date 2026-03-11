@@ -1,9 +1,15 @@
 -- Create tables for inventory-orders dashboard
 
+CREATE TABLE IF NOT EXISTS categories (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) UNIQUE NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS inventory (
   id SERIAL PRIMARY KEY,
   item_name VARCHAR(255) UNIQUE NOT NULL,
-  available_quantity INTEGER NOT NULL DEFAULT 0
+  available_quantity INTEGER NOT NULL DEFAULT 0,
+  category VARCHAR(255) DEFAULT 'General'
 );
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -13,6 +19,7 @@ CREATE TABLE IF NOT EXISTS orders (
   product_name VARCHAR(255) NOT NULL,
   ordered_quantity INTEGER NOT NULL,
   shortage_quantity INTEGER NOT NULL DEFAULT 0,
+  sent_quantity INTEGER NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL DEFAULT 'Pending',
   created_at TIMESTAMP DEFAULT NOW()
 );

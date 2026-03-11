@@ -5,13 +5,15 @@ function OrdersTable({ orders, rejectOrder, markSent, editOrder, deleteOrder, in
   const [editCustomerName, setEditCustomerName] = useState("");
   const [editProductName, setEditProductName] = useState("");
   const [editOrderedQuantity, setEditOrderedQuantity] = useState("");
+  const [sendingId, setSendingId] = useState(null);
+  const [sendQty, setSendQty] = useState("");
+
   return (
     <div>
       <h3 className="section-title">All Orders</h3>
 
       {orders.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🛒</div>
           <p>No orders yet. Place your first order above.</p>
         </div>
       ) : (
@@ -23,6 +25,8 @@ function OrdersTable({ orders, rejectOrder, markSent, editOrder, deleteOrder, in
                 <th>Customer</th>
                 <th>Product</th>
                 <th>Ordered</th>
+                <th>Sent</th>
+                <th>Pending</th>
                 <th>Shortage</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -30,16 +34,21 @@ function OrdersTable({ orders, rejectOrder, markSent, editOrder, deleteOrder, in
             </thead>
             <tbody>
               {orders.map((order) => {
+                const pendingQty = order.orderedQuantity - order.sentQuantity;
                 const statusClass =
                   order.status === "Pending" ? "badge-pending" :
-                  order.status === "Sent" ? "badge-sent" : "badge-rejected";
+                  order.status === "Sent" ? "badge-sent" :
+                  order.status === "Partially Sent" ? "badge-partial" :
+                  "badge-rejected";
 
                 const isEditing = editingId === order.id;
+                const isSending = sendingId === order.id;
+                const canSend = (order.status === "Pending" || order.status === "Partially Sent") && pendingQty > 0;
 
                 return (
                   <tr key={order.id}>
                     <td>{order.orderDate || "—"}</td>
-                    
+
                     {/* Customer Name */}
                     <td style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                       {isEditing ? (
@@ -63,7 +72,6 @@ function OrdersTable({ orders, rejectOrder, markSent, editOrder, deleteOrder, in
                           value={editProductName}
                           onChange={e => setEditProductName(e.target.value)}
                         >
-                          {/* If inventory isn't passed down perfectly, at least show current option + assume it exists */}
                           <option value={order.productName}>{order.productName}</option>
                           {inventory.filter(i => i.itemName !== order.productName).map((item, idx) => (
                             <option key={idx} value={item.itemName}>{item.itemName}</option>
@@ -89,16 +97,29 @@ function OrdersTable({ orders, rejectOrder, markSent, editOrder, deleteOrder, in
                       )}
                     </td>
 
+                    {/* Sent Quantity */}
+                    <td style={{ fontWeight: 600, color: "var(--success)" }}>
+                      {order.sentQuantity || 0}
+                    </td>
+
+                    {/* Pending Quantity */}
+                    <td style={{ fontWeight: 600, color: pendingQty > 0 ? "var(--warning)" : "var(--text-muted)" }}>
+                      {pendingQty}
+                    </td>
+
+                    {/* Shortage */}
                     <td className={order.shortageQuantity > 0 ? "shortage-cell" : ""}>
                       {order.shortageQuantity}
                     </td>
 
+                    {/* Status */}
                     <td>
                       <span className={`badge ${statusClass}`}>{order.status}</span>
                     </td>
 
+                    {/* Actions */}
                     <td>
-                      <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                         {isEditing ? (
                           <>
                             <button
@@ -123,25 +144,62 @@ function OrdersTable({ orders, rejectOrder, markSent, editOrder, deleteOrder, in
                               Cancel
                             </button>
                           </>
+                        ) : isSending ? (
+                          <>
+                            <input
+                              className="form-input"
+                              type="number"
+                              placeholder={`Max ${pendingQty}`}
+                              style={{ padding: "4px 8px", width: "90px" }}
+                              value={sendQty}
+                              onChange={e => setSendQty(e.target.value)}
+                              min="1"
+                              max={pendingQty}
+                            />
+                            <button
+                              className="btn btn-success"
+                              style={{ padding: "6px 10px" }}
+                              onClick={() => {
+                                const qty = Number(sendQty);
+                                if (qty > 0 && qty <= pendingQty) {
+                                  markSent(order.id, qty);
+                                  setSendingId(null);
+                                  setSendQty("");
+                                }
+                              }}
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              style={{ padding: "6px 10px" }}
+                              onClick={() => { setSendingId(null); setSendQty(""); }}
+                            >
+                              Cancel
+                            </button>
+                          </>
                         ) : (
                           <>
-                            {order.status === "Pending" && (
+                            {canSend && (
+                              <button
+                                className="btn btn-success"
+                                style={{ padding: "6px 10px" }}
+                                onClick={() => {
+                                  setSendingId(order.id);
+                                  setSendQty("");
+                                }}
+                              >
+                                Send
+                              </button>
+                            )}
+                            {(order.status === "Pending" || order.status === "Partially Sent") && (
                               <>
-                                <button
-                                  className="btn btn-success"
-                                  style={{ padding: "6px 10px" }}
-                                  onClick={() => markSent(order.id)}
-                                  disabled={order.shortageQuantity > 0}
-                                  title={order.shortageQuantity > 0 ? "Cannot send: stock shortage" : "Mark as sent"}
-                                >
-                                  ✓ Sent
-                                </button>
                                 <button
                                   className="btn btn-danger"
                                   style={{ padding: "6px 10px" }}
                                   onClick={() => rejectOrder(order.id)}
                                 >
-                                  ✕ Reject
+                                  Reject
                                 </button>
                                 <button
                                   className="btn"

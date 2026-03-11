@@ -12,6 +12,116 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // ============================================
+// GET /api/categories
+// ============================================
+app.get("/api/categories", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM categories ORDER BY id");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+});
+
+// ============================================
+// POST /api/categories { name }
+// ============================================
+app.post("/api/categories", async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: "Category name required" });
+
+  try {
+    await pool.query("INSERT INTO categories (name) VALUES ($1)", [name]);
+    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    res.json(cats.rows);
+  } catch (err) {
+    console.error(err);
+    // Ignore duplicate key errors gracefully by just returning the list
+    if (err.code === '23505') {
+       const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+       return res.json(cats.rows);
+    }
+    res.status(500).json({ error: "Failed to add category" });
+  }
+});
+
+// ============================================
+// PUT /api/categories/:id  { name }
+// ============================================
+app.put("/api/categories/:id", async (req, res) => {
+  const id = req.params.id;
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: "Category name required" });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Get old category name
+    const existing = await client.query("SELECT * FROM categories WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Category not found" });
+    }
+    const oldName = existing.rows[0].name;
+
+    // Rename category
+    await client.query("UPDATE categories SET name = $1 WHERE id = $2", [name, id]);
+
+    // Update all inventory items with old category name
+    await client.query("UPDATE inventory SET category = $1 WHERE category = $2", [name, oldName]);
+
+    await client.query("COMMIT");
+
+    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    res.json(cats.rows);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Failed to update category" });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
+// DELETE /api/categories/:id
+// ============================================
+app.delete("/api/categories/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const existing = await client.query("SELECT * FROM categories WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Category not found" });
+    }
+    const catName = existing.rows[0].name;
+
+    // Move inventory items from this category to 'General'
+    await client.query("UPDATE inventory SET category = 'General' WHERE category = $1", [catName]);
+
+    // Delete the category
+    await client.query("DELETE FROM categories WHERE id = $1", [id]);
+
+    await client.query("COMMIT");
+
+    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    res.json(cats.rows);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete category" });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
 // DATABASE INITIALIZATION
 // ============================================
 async function initDB() {
@@ -74,7 +184,7 @@ async function reallocateStock(client, productName) {
 app.get("/api/inventory", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, item_name, available_quantity FROM inventory ORDER BY id"
+      "SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id"
     );
     res.json(result.rows);
   } catch (err) {
@@ -84,10 +194,10 @@ app.get("/api/inventory", async (req, res) => {
 });
 
 // ============================================
-// POST /api/inventory  { itemName, quantity }
+// POST /api/inventory  { itemName, quantity, category }
 // ============================================
 app.post("/api/inventory", async (req, res) => {
-  const { itemName, quantity } = req.body;
+  const { itemName, quantity, category = 'General' } = req.body;
   const qty = Number(quantity);
   if (!itemName || !qty || qty <= 0) {
     return res.status(400).json({ error: "Invalid itemName or quantity" });
@@ -105,13 +215,13 @@ app.post("/api/inventory", async (req, res) => {
 
     if (existing.rows.length === 0) {
       await client.query(
-        "INSERT INTO inventory (item_name, available_quantity) VALUES ($1, $2)",
-        [itemName, qty]
+        "INSERT INTO inventory (item_name, available_quantity, category) VALUES ($1, $2, $3)",
+        [itemName, qty, category]
       );
     } else {
       await client.query(
-        "UPDATE inventory SET available_quantity = available_quantity + $1 WHERE item_name = $2",
-        [qty, itemName]
+        "UPDATE inventory SET available_quantity = available_quantity + $1, category = $2 WHERE item_name = $3",
+        [qty, category, itemName]
       );
     }
 
@@ -121,7 +231,7 @@ app.post("/api/inventory", async (req, res) => {
     await client.query("COMMIT");
 
     // Return updated state
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -172,7 +282,7 @@ app.post("/api/orders", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -225,7 +335,7 @@ app.put("/api/orders/:id/reject", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -238,10 +348,16 @@ app.put("/api/orders/:id/reject", async (req, res) => {
 });
 
 // ============================================
-// PUT /api/orders/:id/send
+// PUT /api/orders/:id/send  { sendQuantity }
 // ============================================
 app.put("/api/orders/:id/send", async (req, res) => {
   const orderId = req.params.id;
+  const { sendQuantity } = req.body;
+  const sendQty = Number(sendQuantity);
+
+  if (!sendQty || sendQty <= 0) {
+    return res.status(400).json({ error: "Invalid send quantity" });
+  }
 
   const client = await pool.connect();
   try {
@@ -254,23 +370,28 @@ app.put("/api/orders/:id/send", async (req, res) => {
     }
 
     const order = orderRes.rows[0];
-    if (order.status !== "Pending") {
+    if (order.status === "Rejected" || order.status === "Sent") {
       await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Only pending orders can be sent" });
-    }
-    if (order.shortage_quantity > 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Cannot send order with shortage" });
+      return res.status(400).json({ error: "Cannot send a rejected or fully sent order" });
     }
 
+    const remainingToSend = order.ordered_quantity - order.sent_quantity;
+    if (sendQty > remainingToSend) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: `Cannot send ${sendQty}. Only ${remainingToSend} remaining to send.` });
+    }
+
+    const newSentQty = order.sent_quantity + sendQty;
+    const newStatus = newSentQty >= order.ordered_quantity ? "Sent" : "Partially Sent";
+
     await client.query(
-      "UPDATE orders SET status = 'Sent' WHERE id = $1",
-      [orderId]
+      "UPDATE orders SET sent_quantity = $1, status = $2 WHERE id = $3",
+      [newSentQty, newStatus, orderId]
     );
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -286,7 +407,7 @@ app.put("/api/orders/:id/send", async (req, res) => {
 // ============================================
 app.put("/api/inventory/:id", async (req, res) => {
   const id = req.params.id;
-  const { itemName, quantity } = req.body;
+  const { itemName, quantity, category = 'General' } = req.body;
   const qty = Number(quantity);
   
   if (!itemName || isNaN(qty) || qty < 0) {
@@ -306,8 +427,8 @@ app.put("/api/inventory/:id", async (req, res) => {
 
     // Update the item
     await client.query(
-      "UPDATE inventory SET item_name = $1, available_quantity = $2 WHERE id = $3",
-      [itemName, qty, id]
+      "UPDATE inventory SET item_name = $1, available_quantity = $2, category = $3 WHERE id = $4",
+      [itemName, qty, category, id]
     );
 
     // If name changed, update orders too to maintain link
@@ -323,7 +444,7 @@ app.put("/api/inventory/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -363,7 +484,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -424,7 +545,7 @@ app.put("/api/orders/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -470,7 +591,7 @@ app.delete("/api/orders/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
