@@ -69,8 +69,8 @@ app.put("/api/categories/:id", async (req, res) => {
     // Rename category
     await client.query("UPDATE categories SET name = $1 WHERE id = $2", [name, id]);
 
-    // Update all inventory items with old category name
-    await client.query("UPDATE inventory SET category = $1 WHERE category = $2", [name, oldName]);
+    // Update all inventory items with old category name (case-insensitive)
+    await client.query("UPDATE inventory SET category = $1 WHERE LOWER(category) = LOWER($2)", [name, oldName]);
 
     await client.query("COMMIT");
 
@@ -102,8 +102,14 @@ app.delete("/api/categories/:id", async (req, res) => {
     }
     const catName = existing.rows[0].name;
 
-    // Move inventory items from this category to 'General'
-    await client.query("UPDATE inventory SET category = 'General' WHERE category = $1", [catName]);
+    // Update orders for any items in this category to reflect full shortage (since items are gone)
+    await client.query(
+      "UPDATE orders SET shortage_quantity = ordered_quantity - sent_quantity WHERE product_name IN (SELECT item_name FROM inventory WHERE LOWER(category) = LOWER($1)) AND (status = 'Pending' OR status = 'Partially Sent')",
+      [catName]
+    );
+
+    // DELETE inventory items in this category
+    await client.query("DELETE FROM inventory WHERE LOWER(category) = LOWER($1)", [catName]);
 
     // Delete the category
     await client.query("DELETE FROM categories WHERE id = $1", [id]);
@@ -134,7 +140,7 @@ async function initDB() {
 // 🔥 FIFO REALLOCATION (runs inside a transaction)
 // ============================================
 async function reallocateStock(client, productName) {
-  // Get current available quantity
+  // Get current available (unallocated) quantity
   const invRes = await client.query(
     "SELECT id, available_quantity FROM inventory WHERE item_name = $1",
     [productName]
@@ -143,26 +149,28 @@ async function reallocateStock(client, productName) {
 
   const invRow = invRes.rows[0];
 
-  // Get all pending orders for this product, ordered by created_at (FIFO)
+  // Get all pending and partial orders for this product, ordered by created_at (FIFO)
   const ordersRes = await client.query(
-    `SELECT id, ordered_quantity, shortage_quantity
+    `SELECT id, ordered_quantity, sent_quantity, shortage_quantity
      FROM orders
-     WHERE product_name = $1 AND status = 'Pending'
+     WHERE product_name = $1 AND (status = 'Pending' OR status = 'Partially Sent')
      ORDER BY created_at ASC`,
     [productName]
   );
 
-  // Build pool = available + already allocated to pending orders
+  // Build pool = current unallocated + already allocated to these orders
   const alreadyAllocated = ordersRes.rows.reduce((sum, o) => {
-    return sum + (o.ordered_quantity - o.shortage_quantity);
+    const allocatedToThisOrder = (o.ordered_quantity - o.sent_quantity) - o.shortage_quantity;
+    return sum + Math.max(0, allocatedToThisOrder);
   }, 0);
 
   let pool_qty = invRow.available_quantity + alreadyAllocated;
 
   // FIFO distribute
   for (const order of ordersRes.rows) {
-    const allocated = Math.min(pool_qty, order.ordered_quantity);
-    const shortage = order.ordered_quantity - allocated;
+    const remainingNeeded = order.ordered_quantity - order.sent_quantity;
+    const allocated = Math.min(pool_qty, remainingNeeded);
+    const shortage = remainingNeeded - allocated;
     pool_qty -= allocated;
 
     await client.query(
@@ -171,7 +179,7 @@ async function reallocateStock(client, productName) {
     );
   }
 
-  // Remaining pool is new available
+  // Remaining pool is new available (unallocated)
   await client.query(
     "UPDATE inventory SET available_quantity = $1 WHERE id = $2",
     [pool_qty, invRow.id]
@@ -197,10 +205,10 @@ app.get("/api/inventory", async (req, res) => {
 // POST /api/inventory  { itemName, quantity, category }
 // ============================================
 app.post("/api/inventory", async (req, res) => {
-  const { itemName, quantity, category = 'General' } = req.body;
+  const { itemName, quantity, category } = req.body;
   const qty = Number(quantity);
-  if (!itemName || !qty || qty <= 0) {
-    return res.status(400).json({ error: "Invalid itemName or quantity" });
+  if (!itemName || !qty || qty <= 0 || !category) {
+    return res.status(400).json({ error: "Invalid itemName, quantity or category" });
   }
 
   const client = await pool.connect();
@@ -389,6 +397,9 @@ app.put("/api/orders/:id/send", async (req, res) => {
       [newSentQty, newStatus, orderId]
     );
 
+    // After sending, reallocate to update inventory available quantity correctly
+    await reallocateStock(client, order.product_name);
+
     await client.query("COMMIT");
 
     const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
@@ -407,11 +418,11 @@ app.put("/api/orders/:id/send", async (req, res) => {
 // ============================================
 app.put("/api/inventory/:id", async (req, res) => {
   const id = req.params.id;
-  const { itemName, quantity, category = 'General' } = req.body;
+  const { itemName, quantity, category } = req.body;
   const qty = Number(quantity);
   
-  if (!itemName || isNaN(qty) || qty < 0) {
-    return res.status(400).json({ error: "Invalid itemName or quantity" });
+  if (!itemName || isNaN(qty) || qty < 0 || !category) {
+    return res.status(400).json({ error: "Invalid itemName, quantity or category" });
   }
 
   const client = await pool.connect();
@@ -519,12 +530,12 @@ app.put("/api/orders/:id", async (req, res) => {
     }
     const order = existingRes.rows[0];
 
-    // If order was pending, restore its allocated stock to the pool before recreating it
-    if (order.status === 'Pending') {
-      const actuallyAllocated = order.ordered_quantity - order.shortage_quantity;
+    // If order was pending/partial, restore its allocated stock to the pool before updating it
+    if (order.status === 'Pending' || order.status === 'Partially Sent') {
+      const actuallyAllocated = (order.ordered_quantity - order.sent_quantity) - order.shortage_quantity;
       await client.query(
         "UPDATE inventory SET available_quantity = available_quantity + $1 WHERE item_name = $2",
-        [actuallyAllocated, order.product_name]
+        [Math.max(0, actuallyAllocated), order.product_name]
       );
     }
 
@@ -536,7 +547,7 @@ app.put("/api/orders/:id", async (req, res) => {
     );
 
     // Reallocate
-    if (order.status === 'Pending') {
+    if (order.status === 'Pending' || order.status === 'Partially Sent') {
       if (order.product_name !== productName) {
          await reallocateStock(client, order.product_name);
       }
@@ -574,18 +585,18 @@ app.delete("/api/orders/:id", async (req, res) => {
     }
     const order = existingRes.rows[0];
 
-    // Restore stock if pending
-    if (order.status === 'Pending') {
-      const actuallyAllocated = order.ordered_quantity - order.shortage_quantity;
+    // Restore stock if pending/partial
+    if (order.status === 'Pending' || order.status === 'Partially Sent') {
+      const actuallyAllocated = (order.ordered_quantity - order.sent_quantity) - order.shortage_quantity;
       await client.query(
         "UPDATE inventory SET available_quantity = available_quantity + $1 WHERE item_name = $2",
-        [actuallyAllocated, order.product_name]
+        [Math.max(0, actuallyAllocated), order.product_name]
       );
     }
 
     await client.query("DELETE FROM orders WHERE id = $1", [id]);
 
-    if (order.status === 'Pending') {
+    if (order.status === 'Pending' || order.status === 'Partially Sent') {
       await reallocateStock(client, order.product_name);
     }
 

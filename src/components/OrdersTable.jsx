@@ -129,17 +129,21 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
                       {/* Product Name */}
                       <td>
                         {isEditing ? (
-                          <select
-                            className="form-select"
-                            style={{ padding: "4px 8px", width: "100%" }}
-                            value={editProductName}
-                            onChange={e => setEditProductName(e.target.value)}
-                          >
-                            <option value={order.productName}>{order.productName}</option>
-                            {inventory.filter(i => i.itemName !== order.productName).map((item, idx) => (
-                              <option key={idx} value={item.itemName}>{item.itemName}</option>
-                            ))}
-                          </select>
+                          <>
+                            <input
+                              className="form-input"
+                              list={`products-list-${order.id}`}
+                              style={{ padding: "4px 8px", width: "100%" }}
+                              value={editProductName}
+                              onChange={e => setEditProductName(e.target.value)}
+                              placeholder="Type or select..."
+                            />
+                            <datalist id={`products-list-${order.id}`}>
+                              {inventory.map((item, idx) => (
+                                <option key={idx} value={item.itemName} />
+                              ))}
+                            </datalist>
+                          </>
                         ) : (
                           order.productName
                         )}

@@ -51,7 +51,7 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
         <div className="empty-state">
           <div className="empty-icon">{isSearching ? "🔍" : "📁"}</div>
           <p>
-            {isSearching 
+            {isSearching
               ? `No categories matching "${searchQuery}" found.`
               : `No categories yet. Add your first stock category above.`
             }
@@ -132,7 +132,7 @@ function CategoriesPage({ categories, addCategory, editCategory, deleteCategory,
                               className="btn btn-danger"
                               style={{ padding: "6px 10px" }}
                               onClick={() => {
-                                if (window.confirm(`Are you sure you want to delete "${cat.name}"? Its items will be moved to General.`)) {
+                                if (window.confirm(`Are you sure you want to delete "${cat.name}"? \nits sub categories will also delete`)) {
                                   deleteCategory(cat.id);
                                 }
                               }}

@@ -21,12 +21,12 @@ function InventoryTable({ category, inventory, addInventory, editInventory, dele
   return (
     <div>
       <div className="page-header">
-        <h2>{category === "General" ? "Stock Management" : `${category} Stock Management`}</h2>
-        <p>Add new {category === "General" ? "products" : category.toLowerCase()} or restock existing inventory.</p>
+        <h2>{category} Stock Management</h2>
+        <p>Add new products or restock your {category.toLowerCase()} inventory.</p>
       </div>
 
       <div className="form-section">
-        <h3>Add / Restock {category !== "General" ? category : "Item"}</h3>
+        <h3>Add / Restock {category}</h3>
         <div className="form-grid">
           <div className="form-group">
             <label>Item Name</label>
@@ -65,7 +65,7 @@ function InventoryTable({ category, inventory, addInventory, editInventory, dele
         </div>
       </div>
 
-      <h3 className="section-title">Current {category !== "General" ? `${category} ` : ""}Inventory</h3>
+      <h3 className="section-title">Current {category} Inventory</h3>
 
       {filteredInventory.length === 0 ? (
         <div className="empty-state">
@@ -73,7 +73,7 @@ function InventoryTable({ category, inventory, addInventory, editInventory, dele
           <p>
             {isSearching 
               ? `No products matching "${searchQuery}" found in ${category}.`
-              : `No ${category === "General" ? "inventory items" : category.toLowerCase()} yet. Add your first product above.`
+              : `No items in ${category.toLowerCase()} yet. Add your first product above.`
             }
           </p>
         </div>

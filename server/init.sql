@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS inventory (
   id SERIAL PRIMARY KEY,
   item_name VARCHAR(255) UNIQUE NOT NULL,
   available_quantity INTEGER NOT NULL DEFAULT 0,
-  category VARCHAR(255) DEFAULT 'General'
+  category VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS orders (

@@ -147,7 +147,7 @@ function App() {
       const data = await res.json();
       if (res.ok) {
         setCategories(data);
-        // Re-fetch inventory since items may have moved to General
+        // Re-fetch inventory since items are deleted along with category
         const invRes = await fetch(`${API}/inventory`);
         const invData = await invRes.json();
         setInventory(
@@ -354,17 +354,21 @@ function App() {
           />
         )}
 
-        {activeTab.startsWith("inventory-") && (
-          <InventoryTable
-            key={activeTab}
-            category={activeTab.replace("inventory-", "").charAt(0).toUpperCase() + activeTab.replace("inventory-", "").slice(1)}
-            inventory={inventory}
-            addInventory={addInventory}
-            editInventory={editInventory}
-            deleteInventory={deleteInventory}
-            searchQuery={searchQuery}
-          />
-        )}
+        {activeTab.startsWith("inventory-") && (() => {
+          const catNameFromTab = activeTab.replace("inventory-", "");
+          const actualCategory = categories.find(c => c.name.toLowerCase() === catNameFromTab.toLowerCase());
+          return (
+            <InventoryTable
+              key={activeTab}
+              category={actualCategory ? actualCategory.name : catNameFromTab}
+              inventory={inventory}
+              addInventory={addInventory}
+              editInventory={editInventory}
+              deleteInventory={deleteInventory}
+              searchQuery={searchQuery}
+            />
+          );
+        })()}
 
         {activeTab === "inventory" && (
           <CategoriesPage

@@ -72,23 +72,17 @@ function OrderSheet({ inventory, categories = [], placeOrder }) {
         {/* Flyout/Drill-down Product Picker */}
         <div className="form-group" style={{ position: "relative" }} ref={pickerRef}>
           <label>Product</label>
-          <div
+          <input
             className="form-input"
-            style={{
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              color: productName ? "var(--text-primary)" : "var(--text-muted)",
-              userSelect: "none",
+            placeholder="Type or select product..."
+            value={productName}
+            autoComplete="off"
+            onChange={(e) => {
+              setProductName(e.target.value);
+              setPickerOpen(true);
             }}
-            onClick={() => {
-              setPickerOpen(!pickerOpen);
-              setHoveredCategory(null);
-            }}
-          >
-            {productName || "Select Product"}
-          </div>
+            onClick={() => setPickerOpen(true)}
+          />
 
           {pickerOpen && (
             <div style={{
@@ -106,46 +100,48 @@ function OrderSheet({ inventory, categories = [], placeOrder }) {
               overflow: "hidden",
               animation: "dropdownFade 0.2s ease-out",
             }}>
-              {/* Left Pane: Categories */}
-              <div style={{ 
-                width: "180px", 
-                borderRight: "1px solid var(--border-color)", 
-                background: "var(--bg-input)",
-                padding: "8px 0",
-                overflowY: "auto"
-              }}>
-                {categories.length === 0 ? (
-                  <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--text-muted)" }}>
-                    No categories
-                  </div>
-                ) : (
-                  categories.map(cat => {
-                    const isActive = hoveredCategory === cat.name;
-                    return (
-                      <div
-                        key={cat.id}
-                        style={{
-                          padding: "10px 16px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: isActive ? 600 : 400,
-                          background: isActive ? "var(--bg-card)" : "transparent",
-                          color: isActive ? "var(--accent)" : "var(--text-primary)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          transition: "all 0.15s",
-                        }}
-                        onMouseEnter={() => setHoveredCategory(cat.name)}
-                        onClick={() => setHoveredCategory(cat.name)}
-                      >
-                        <span>{cat.name}</span>
-                        <span style={{ fontSize: "12px", opacity: isActive ? 1 : 0.4 }}>›</span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+              {/* Left Pane: Categories (hide if searching globally) */}
+              {!productName && (
+                <div style={{ 
+                  width: "180px", 
+                  borderRight: "1px solid var(--border-color)", 
+                  background: "var(--bg-input)",
+                  padding: "8px 0",
+                  overflowY: "auto"
+                }}>
+                  {categories.length === 0 ? (
+                    <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--text-muted)" }}>
+                      No categories
+                    </div>
+                  ) : (
+                    categories.map(cat => {
+                      const isActive = hoveredCategory === cat.name;
+                      return (
+                        <div
+                          key={cat.id}
+                          style={{
+                            padding: "10px 16px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: isActive ? 600 : 400,
+                            background: isActive ? "var(--bg-card)" : "transparent",
+                            color: isActive ? "var(--accent)" : "var(--text-primary)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={() => setHoveredCategory(cat.name)}
+                          onClick={() => setHoveredCategory(cat.name)}
+                        >
+                          <span>{cat.name}</span>
+                          <span style={{ fontSize: "12px", opacity: isActive ? 1 : 0.4 }}>›</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
 
               {/* Right Pane: Items */}
               <div style={{ 
@@ -154,7 +150,43 @@ function OrderSheet({ inventory, categories = [], placeOrder }) {
                 overflowY: "auto",
                 background: "var(--bg-card)"
               }}>
-                {!hoveredCategory ? (
+                {productName ? (
+                  /* Global Search View */
+                  <>
+                    <div style={{ padding: "4px 16px 8px", fontSize: "11px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Search Results
+                    </div>
+                    {inventory.filter(i => i.itemName.toLowerCase().includes(productName.toLowerCase())).length === 0 ? (
+                      <div style={{ padding: "20px 16px", fontSize: "13px", color: "var(--text-muted)", fontStyle: "italic" }}>
+                        No matches found
+                      </div>
+                    ) : (
+                      inventory.filter(i => i.itemName.toLowerCase().includes(productName.toLowerCase())).map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: "10px 16px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            color: "var(--text-primary)",
+                            transition: "all 0.1s",
+                          }}
+                          onClick={() => handleProductClick(item.itemName)}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = "var(--accent-glow)";
+                            e.currentTarget.style.color = "var(--accent)";
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "var(--text-primary)";
+                          }}
+                        >
+                          {item.itemName} <span style={{fontSize: '11px', color: 'var(--text-muted)'}}>({item.category})</span>
+                        </div>
+                      ))
+                    )}
+                  </>
+                ) : !hoveredCategory ? (
                   <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
                     Select a category to view items
                   </div>
