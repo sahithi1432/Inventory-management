@@ -52,6 +52,8 @@ function OrderSheet({ inventory, categories = [], placeOrder }) {
           <input
             className="form-input"
             type="date"
+            min="2000-01-01"
+            max="2099-12-31"
             value={orderDate}
             onChange={(e) => setOrderDate(e.target.value)}
           />
@@ -210,6 +212,13 @@ function OrderSheet({ inventory, categories = [], placeOrder }) {
           <button
             className="btn btn-primary"
             onClick={() => {
+              if (orderDate) {
+                const year = new Date(orderDate).getFullYear();
+                if (year < 2000 || year > 2099) {
+                  alert("Please enter a valid year between 2000 and 2099.");
+                  return;
+                }
+              }
               placeOrder({
                 orderDate,
                 customerName,

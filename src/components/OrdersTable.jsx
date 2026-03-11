@@ -101,6 +101,8 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
                           <input
                             className="form-input"
                             type="date"
+                            min="2000-01-01"
+                            max="2099-12-31"
                             style={{ padding: "4px 8px", width: "130px", fontSize: "12px" }}
                             value={editOrderDate}
                             onChange={e => setEditOrderDate(e.target.value)}
@@ -187,6 +189,13 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
                                 className="btn btn-success"
                                 style={{ padding: "6px 10px" }}
                                 onClick={() => {
+                                  if (editOrderDate) {
+                                    const year = new Date(editOrderDate).getFullYear();
+                                    if (year < 2000 || year > 2099) {
+                                      alert("Please enter a valid year (2000-2099).");
+                                      return;
+                                    }
+                                  }
                                   updateOrder(order.id, {
                                     customerName: editCustomerName,
                                     productName: editProductName,
