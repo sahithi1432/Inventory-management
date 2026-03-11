@@ -486,7 +486,8 @@ body {
 
 /* ===== TABLES ===== */
 .table-container {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 60vh;
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--bg-card);
@@ -504,6 +505,10 @@ body {
 }
 
 .data-table th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  z-index: 10;
   text-align: left;
   padding: 14px 20px;
   font-size: 11px;
