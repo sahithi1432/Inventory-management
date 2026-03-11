@@ -121,10 +121,10 @@ function HomePage({ inventory, orders, searchQuery, setActiveTab, setSearchQuery
                   filteredInventory.map((item, idx) => {
                     const badgeClass =
                       item.availableQuantity === 0 ? "badge-out" :
-                      item.availableQuantity <= 5 ? "badge-low-stock" : "badge-in-stock";
+                      item.availableQuantity <= 300 ? "badge-low-stock" : "badge-in-stock";
                     const label =
                       item.availableQuantity === 0 ? "Out of Stock" :
-                      item.availableQuantity <= 5 ? "Low Stock" : "In Stock";
+                      item.availableQuantity <= 300 ? "Low Stock" : "In Stock";
                     return (
                       <tr key={idx}>
                         <td style={{ fontWeight: 500, color: "var(--text-primary)" }}>{item.itemName}</td>

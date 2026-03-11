@@ -91,131 +91,105 @@ function OrderSheet({ inventory, categories = [], placeOrder }) {
           {pickerOpen && (
             <div style={{
               position: "absolute",
-              top: "100%",
+              top: "calc(100% + 5px)",
               left: 0,
-              right: 0,
-              zIndex: 100,
+              zIndex: 1000,
               background: "var(--bg-card)",
               border: "1px solid var(--border-color)",
-              borderRadius: "8px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-              marginTop: "4px",
-              minWidth: "180px",
-              overflow: "hidden"
+              borderRadius: "10px",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.18)",
+              display: "flex",
+              minWidth: "450px",
+              maxHeight: "350px",
+              overflow: "hidden",
+              animation: "dropdownFade 0.2s ease-out",
             }}>
-              {categories.length === 0 ? (
-                <div style={{ padding: "12px 14px", fontSize: "13px", color: "var(--text-muted)" }}>
-                  No categories available
-                </div>
-              ) : (
-                /* Mobile Drill-down Header */
-                <>
-                {hoveredCategory && window.innerWidth <= 768 && (
-                  <div 
-                    style={{ 
-                      padding: "10px 14px", 
-                      background: "var(--bg-input)", 
-                      fontSize: "13px", 
-                      fontWeight: 600, 
-                      cursor: "pointer",
-                      borderBottom: "1px solid var(--border-color)"
-                     }}
-                    onClick={handleBackToCategories}
-                  >
-                    ◀ Back to Categories
+              {/* Left Pane: Categories */}
+              <div style={{ 
+                width: "180px", 
+                borderRight: "1px solid var(--border-color)", 
+                background: "var(--bg-input)",
+                padding: "8px 0",
+                overflowY: "auto"
+              }}>
+                {categories.length === 0 ? (
+                  <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--text-muted)" }}>
+                    No categories
                   </div>
-                )}
-                <div style={{ maxHeight: "250px", overflowY: "auto" }}>
-                {(!hoveredCategory || window.innerWidth > 768) ? (
-                  /* Standard List (Categories) */
+                ) : (
                   categories.map(cat => {
-                    const items = getItemsForCategory(cat.name);
+                    const isActive = hoveredCategory === cat.name;
                     return (
                       <div
                         key={cat.id}
-                        style={{ position: "relative" }}
-                        onMouseEnter={() => { if(window.innerWidth > 768) setHoveredCategory(cat.name) }}
-                        onMouseLeave={() => { if(window.innerWidth > 768) setHoveredCategory(null) }}
-                        onClick={() => handleCategoryClick(cat.name)}
+                        style={{
+                          padding: "10px 16px",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: isActive ? 600 : 400,
+                          background: isActive ? "var(--bg-card)" : "transparent",
+                          color: isActive ? "var(--accent)" : "var(--text-primary)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={() => setHoveredCategory(cat.name)}
+                        onClick={() => setHoveredCategory(cat.name)}
                       >
-                        <div
-                          style={{
-                            padding: "10px 14px",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            background: hoveredCategory === cat.name ? "var(--bg-input)" : "transparent",
-                            transition: "background 0.15s",
-                          }}
-                        >
-                          <span>{cat.name}</span>
-                          <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>▶</span>
-                        </div>
-
-                        {/* DESKTOP Flyout submenu */}
-                        {hoveredCategory === cat.name && window.innerWidth > 768 && (
-                          <div style={{
-                            position: "absolute",
-                            top: 0,
-                            left: "100%",
-                            background: "var(--bg-card)",
-                            border: "1px solid var(--border-color)",
-                            borderRadius: "8px",
-                            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                            minWidth: "200px",
-                            maxHeight: "220px",
-                            overflowY: "auto",
-                            zIndex: 101,
-                          }}>
-                            {items.length === 0 ? (
-                              <div style={{ padding: "12px 14px", fontSize: "13px", color: "var(--text-muted)" }}>
-                                No items
-                              </div>
-                            ) : (
-                              items.map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  style={{
-                                    padding: "10px 14px",
-                                    cursor: "pointer",
-                                    fontSize: "14px",
-                                    transition: "background 0.15s",
-                                  }}
-                                  onClick={() => handleProductClick(item.itemName)}
-                                  onMouseEnter={e => e.currentTarget.style.background = "var(--bg-input)"}
-                                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                                >
-                                  {item.itemName}
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
+                        <span>{cat.name}</span>
+                        <span style={{ fontSize: "12px", opacity: isActive ? 1 : 0.4 }}>›</span>
                       </div>
                     );
                   })
-                ) : (
-                  /* MOBILE Items View */
-                  getItemsForCategory(hoveredCategory).map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: "12px 14px",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        borderBottom: "1px solid var(--border-color)",
-                      }}
-                      onClick={() => handleProductClick(item.itemName)}
-                    >
-                      {item.itemName}
-                    </div>
-                  ))
                 )}
-                </div>
-                </>
-              )}
+              </div>
+
+              {/* Right Pane: Items */}
+              <div style={{ 
+                flex: 1, 
+                padding: "8px 0", 
+                overflowY: "auto",
+                background: "var(--bg-card)"
+              }}>
+                {!hoveredCategory ? (
+                  <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                    Select a category to view items
+                  </div>
+                ) : (
+                  <>
+                    {getItemsForCategory(hoveredCategory).length === 0 ? (
+                      <div style={{ padding: "20px 16px", fontSize: "13px", color: "var(--text-muted)", fontStyle: "italic" }}>
+                        No items found
+                      </div>
+                    ) : (
+                      getItemsForCategory(hoveredCategory).map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: "10px 16px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            color: "var(--text-primary)",
+                            transition: "all 0.1s",
+                          }}
+                          onClick={() => handleProductClick(item.itemName)}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = "var(--accent-glow)";
+                            e.currentTarget.style.color = "var(--accent)";
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "var(--text-primary)";
+                          }}
+                        >
+                          {item.itemName}
+                        </div>
+                      ))
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

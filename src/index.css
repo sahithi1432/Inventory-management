@@ -291,6 +291,12 @@ body {
   color: var(--text-primary);
 }
 
+/* ===== ANIMATIONS ===== */
+@keyframes dropdownFade {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* RESPONSIVE MEDIA QUERIES */
 @media (max-width: 768px) {
   .search-input-wrapper {

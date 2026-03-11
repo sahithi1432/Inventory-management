@@ -5,6 +5,7 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
   const [editCustomerName, setEditCustomerName] = useState("");
   const [editProductName, setEditProductName] = useState("");
   const [editOrderedQuantity, setEditOrderedQuantity] = useState("");
+  const [editOrderDate, setEditOrderDate] = useState("");
   const [sendingId, setSendingId] = useState(null);
   const [sendQty, setSendQty] = useState("");
 
@@ -95,7 +96,19 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
 
                   return (
                     <tr key={order.id}>
-                      <td>{order.orderDate || "—"}</td>
+                      <td>
+                        {isEditing ? (
+                          <input
+                            className="form-input"
+                            type="date"
+                            style={{ padding: "4px 8px", width: "130px", fontSize: "12px" }}
+                            value={editOrderDate}
+                            onChange={e => setEditOrderDate(e.target.value)}
+                          />
+                        ) : (
+                          order.orderDate || "—"
+                        )}
+                      </td>
 
                       {/* Customer Name */}
                       <td style={{ fontWeight: 500, color: "var(--text-primary)" }}>
@@ -177,7 +190,8 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
                                   updateOrder(order.id, {
                                     customerName: editCustomerName,
                                     productName: editProductName,
-                                    orderedQuantity: Number(editOrderedQuantity)
+                                    orderedQuantity: Number(editOrderedQuantity),
+                                    orderDate: editOrderDate
                                   });
                                   setEditingId(null);
                                 }}
@@ -257,6 +271,7 @@ function OrdersTable({ orders, rejectOrder, markSent, updateOrder, deleteOrder, 
                                       setEditCustomerName(order.customerName);
                                       setEditProductName(order.productName);
                                       setEditOrderedQuantity(order.orderedQuantity);
+                                      setEditOrderDate(order.orderDate || "");
                                     }}
                                   >
                                     Edit
