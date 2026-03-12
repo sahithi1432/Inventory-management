@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 // ============================================
 app.get("/api/categories", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM categories ORDER BY id");
+    const result = await pool.query("SELECT * FROM categories ORDER BY name ASC");
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -33,13 +33,13 @@ app.post("/api/categories", async (req, res) => {
 
   try {
     await pool.query("INSERT INTO categories (name) VALUES ($1)", [name]);
-    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    const cats = await pool.query("SELECT * FROM categories ORDER BY name ASC");
     res.json(cats.rows);
   } catch (err) {
     console.error(err);
     // Ignore duplicate key errors gracefully by just returning the list
     if (err.code === '23505') {
-       const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+       const cats = await pool.query("SELECT * FROM categories ORDER BY name ASC");
        return res.json(cats.rows);
     }
     res.status(500).json({ error: "Failed to add category" });
@@ -74,7 +74,7 @@ app.put("/api/categories/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    const cats = await pool.query("SELECT * FROM categories ORDER BY name ASC");
     res.json(cats.rows);
   } catch (err) {
     await client.query("ROLLBACK");
@@ -115,7 +115,7 @@ app.delete("/api/categories/bulk", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    const cats = await pool.query("SELECT * FROM categories ORDER BY name ASC");
     res.json(cats.rows);
   } catch (err) {
     await client.query("ROLLBACK");
@@ -157,7 +157,7 @@ app.delete("/api/categories/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const cats = await pool.query("SELECT * FROM categories ORDER BY id");
+    const cats = await pool.query("SELECT * FROM categories ORDER BY name ASC");
     res.json(cats.rows);
   } catch (err) {
     await client.query("ROLLBACK");
@@ -216,7 +216,7 @@ async function reallocateStock(client, productName) {
 app.get("/api/inventory", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id"
+      "SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC"
     );
     res.json(result.rows);
   } catch (err) {
@@ -263,7 +263,7 @@ app.post("/api/inventory", async (req, res) => {
     await client.query("COMMIT");
 
     // Return updated state
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -314,7 +314,7 @@ app.post("/api/orders", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -358,7 +358,7 @@ app.put("/api/orders/:id/reject", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -433,7 +433,7 @@ app.put("/api/orders/:id/send", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -486,7 +486,7 @@ app.put("/api/inventory/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -521,7 +521,7 @@ app.delete("/api/inventory/bulk", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -558,7 +558,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -607,7 +607,7 @@ app.put("/api/orders/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -647,7 +647,7 @@ app.delete("/api/orders/bulk", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
@@ -683,7 +683,7 @@ app.delete("/api/orders/:id", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY id");
+    const inv = await pool.query("SELECT id, item_name, available_quantity, category FROM inventory ORDER BY item_name ASC");
     const ords = await pool.query("SELECT * FROM orders ORDER BY created_at ASC");
     res.json({ inventory: inv.rows, orders: ords.rows });
   } catch (err) {
